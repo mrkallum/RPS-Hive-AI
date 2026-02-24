@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RPS Hive</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --bg:       #0a0a0e;
+    --surface:  #13131a;
+    --border:   #222230;
+    --accent:   #7cffb2;
+    --accent2:  #ff6b6b;
+    --accent3:  #f0c040;
+    --muted:    #444460;
+    --text:     #d0d0e8;
+    --dim:      #555570;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Courier New', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 60px;
+}
+
+/* ── Header ── */
+header {
+    width: 100%;
+    max-width: 860px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 28px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.logo { color: var(--accent); font-size: 1.6rem; letter-spacing: 6px; font-weight: bold; }
+.tagline { font-size: 10px; color: var(--muted); letter-spacing: 2px; text-align: right; }
+
+/* ── Connection status ── */
+#conn-status {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--muted);
+    color: var(--muted);
+    transition: all 0.3s;
+}
+#conn-status.connected { border-color: var(--accent); color: var(--accent); }
+
+/* ── Layout ── */
+.layout {
+    width: 100%;
+    max-width: 860px;
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 16px;
+}
+
+@media (max-width: 640px) {
+    .layout { grid-template-columns: 1fr; }
+}
+
+/* ── Panel ── */
+.panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 20px;
+}
+
+.panel-label {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+/* ── Tabs ── */
+.tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.tab {
+    flex: 1;
+    padding: 10px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: monospace;
+    font-size: 12px;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+}
+
+.tab.active {
+    background: var(--border);
+    color: var(--accent);
+}
+
+.tab:hover:not(.active) { background: var(--border); color: var(--text); }
+
+/* ── Name input ── */
+.name-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+input[type="text"] {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    font-family: monospace;
+    font-size: 13px;
+    border-radius: 3px;
+    outline: none;
+}
+
+input[type="text"]:focus { border-color: var(--accent); }
+
+/* ── Buttons ── */
+.btn {
+    padding: 10px 20px;
+    background: var(--surface);
+    border: 1px solid var(--muted);
+    color: var(--text);
+    cursor: pointer;
+    font-family: monospace;
+    font-size: 13px;
+    border-radius: 3px;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { border-color: var(--accent); color: var(--accent); }
+.btn.primary:hover { background: rgba(124,255,178,0.08); }
+.btn.danger:hover { border-color: var(--accent2); color: var(--accent2); }
+.btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ── Move buttons ── */
+.move-row {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 16px 0;
+}
+
+.move-btn {
+    flex: 1;
+    padding: 18px 10px;
+    font-size: 24px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.move-btn span { font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+.move-btn:hover { border-color: var(--accent); transform: translateY(-2px); }
+.move-btn:active { transform: translateY(0); }
+.move-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+/* ── Result display ── */
+#result-area {
+    min-height: 70px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 14px;
+}
+
+.outcome-text { font-size: 20px; font-weight: bold; }
+.outcome-win  { color: var(--accent2); }
+.outcome-draw { color: var(--accent3); }
+.outcome-loss { color: var(--accent);  }
+
+/* ── Score bar ── */
+.score-row {
+    display: flex;
+    justify-content: space-around;
+    font-size: 13px;
+    color: var(--muted);
+    padding: 12px 0;
+    border-top: 1px solid var(--border);
+    margin-top: 12px;
+}
+
+.score-row b { color: var(--accent); font-size: 16px; }
+
+/* ── Room section ── */
+.room-controls { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+#room-display { font-size: 11px; color: var(--muted); margin-top: 8px; min-height: 20px; }
+#room-display .room-code { color: var(--accent); font-size: 16px; letter-spacing: 4px; }
+
+/* ── Player list ── */
+.player-list { list-style: none; }
+.player-list li {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+}
+.player-list li:last-child { border: none; }
+.ready-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; margin-right: 6px; }
+.ready-dot.ready { background: var(--accent); }
+
+/* ── Mother AI insight panel ── */
+.insight-panel { font-size: 12px; }
+
+.insight-section {
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.insight-section:last-child { border: none; margin-bottom: 0; }
+
+.insight-label { font-size: 10px; color: var(--muted); letter-spacing: 2px; margin-bottom: 8px; }
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 0;
+    color: var(--dim);
+}
+
+.stat-row span { color: var(--text); }
+
+.bar-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 3px 0;
+}
+
+.bar-label { width: 60px; color: var(--dim); font-size: 11px; }
+
+.bar-track {
+    flex: 1;
+    height: 6px;
+    background: var(--bg);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}
+
+.bar-pct { width: 38px; text-align: right; color: var(--dim); font-size: 11px; }
+
+.entropy-pill {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.entropy-low  { background: rgba(255,107,107,0.15); color: var(--accent2); border: 1px solid var(--accent2); }
+.entropy-mid  { background: rgba(240,192,64,0.15);  color: var(--accent3); border: 1px solid var(--accent3); }
+.entropy-high { background: rgba(124,255,178,0.15); color: var(--accent);  border: 1px solid var(--accent); }
+
+.source-tag {
+    font-size: 9px;
+    padding: 1px 5px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--muted);
+    margin-left: 4px;
+}
+
+/* ── Log ── */
+#log {
+    font-size: 11px;
+    color: var(--dim);
+    max-height: 80px;
+    overflow-y: auto;
+    padding-top: 8px;
+}
+
+#log .log-entry { padding: 2px 0; border-bottom: 1px solid var(--border); }
+#log .log-entry:last-child { border: none; }
+
+/* ── Messages ── */
+#msg { font-size: 12px; color: var(--accent3); min-height: 18px; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<header>
+    <div>
+        <div class="logo">RPS HIVE</div>
+        <div style="font-size:10px;color:var(--muted);letter-spacing:2px;margin-top:3px;">collective intelligence engine</div>
+    </div>
+    <div style="text-align:right">
+        <div id="conn-status">● disconnected</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;" id="player-id">—</div>
+    </div>
+</header>
+
+<div class="layout">
+
+    <!-- ── Main panel ── -->
+    <div>
+        <!-- Name -->
+        <div class="panel" style="margin-bottom:16px">
+            <div class="panel-label">Identity</div>
+            <div class="name-row">
+                <input type="text" id="name-input" placeholder="Enter your name..." maxlength="20" value="">
+                <button class="btn primary" onclick="identify()">Set</button>
+            </div>
+            <div id="msg"></div>
+        </div>
+
+        <!-- Mode tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchMode('ai')"    id="tab-ai">vs MOTHER AI</button>
+            <button class="tab"        onclick="switchMode('multi')" id="tab-multi">MULTIPLAYER</button>
+        </div>
+
+        <!-- ── AI Mode ── -->
+        <div id="mode-ai" class="panel">
+            <div class="panel-label">vs Mother AI</div>
+
+            <div id="result-area">Make your move.</div>
+
+            <div class="move-row">
+                <button class="move-btn" onclick="aiMove('rock')">
+                    ✊<span>ROCK</span>
+                </button>
+                <button class="move-btn" onclick="aiMove('paper')">
+                    ✋<span>PAPER</span>
+                </button>
+                <button class="move-btn" onclick="aiMove('scissors')">
+                    ✌️<span>SCISSORS</span>
+                </button>
+            </div>
+
+            <div class="score-row">
+                <div>You<br><b id="s-human">0</b></div>
+                <div>Draw<br><b id="s-draw">0</b></div>
+                <div>Mother<br><b id="s-ai">0</b></div>
+            </div>
+
+            <div id="log" style="margin-top:12px;"></div>
+        </div>
+
+        <!-- ── Multiplayer Mode ── -->
+        <div id="mode-multi" class="panel" style="display:none">
+            <div class="panel-label">Multiplayer Room</div>
+
+            <div class="room-controls">
+                <button class="btn primary" onclick="createRoom()">Create Room</button>
+                <input type="text" id="room-input" placeholder="Room code..." maxlength="6"
+                    style="width:130px;letter-spacing:4px;text-transform:uppercase"
+                    oninput="this.value=this.value.toUpperCase()">
+                <button class="btn" onclick="joinRoom()">Join</button>
+                <button class="btn danger" onclick="leaveRoom()" id="leave-btn" style="display:none">Leave</button>
+            </div>
+
+            <div id="room-display">No room joined.</div>
+
+            <div id="multi-game" style="display:none;margin-top:16px;">
+                <div id="multi-result" class="result-area" style="min-height:50px;margin-bottom:12px;text-align:center;"></div>
+
+                <div class="move-row">
+                    <button class="move-btn" id="m-rock"     onclick="multiMove('rock')">    ✊<span>ROCK</span></button>
+                    <button class="move-btn" id="m-paper"    onclick="multiMove('paper')">   ✋<span>PAPER</span></button>
+                    <button class="move-btn" id="m-scissors" onclick="multiMove('scissors')">✌️<span>SCISSORS</span></button>
+                </div>
+
+                <ul class="player-list" id="player-list"></ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Mother AI Insight panel ── -->
+    <div>
+        <div class="panel insight-panel">
+            <div class="panel-label">Mother AI · Hive Brain</div>
+
+            <div class="insight-section">
+                <div class="insight-label">Population</div>
+                <div class="stat-row">Observations <span id="i-obs">—</span></div>
+                <div class="stat-row">Players seen  <span id="i-players">—</span></div>
+                <div style="margin-top:8px;">
+                    <div class="bar-row"><div class="bar-label">rock</div>
+                        <div class="bar-track"><div class="bar-fill" id="gb-rock"   style="width:33%"></div></div>
+                        <div class="bar-pct"   id="gp-rock">—</div></div>
+                    <div class="bar-row"><div class="bar-label">paper</div>
+                        <div class="bar-track"><div class="bar-fill" id="gb-paper"  style="width:33%"></div></div>
+                        <div class="bar-pct"   id="gp-paper">—</div></div>
+                    <div class="bar-row"><div class="bar-label">scissors</div>
+                        <div class="bar-track"><div class="bar-fill" id="gb-scissors" style="width:33%"></div></div>
+                        <div class="bar-pct"   id="gp-scissors">—</div></div>
+                </div>
+            </div>
+
+            <div class="insight-section">
+                <div class="insight-label">Your Profile</div>
+                <div class="stat-row">Games    <span id="i-games">—</span></div>
+                <div class="stat-row">Style    <span id="i-style">—</span></div>
+                <div class="stat-row">Entropy  <span id="i-entropy">—</span></div>
+                <div class="stat-row">AI weight <span id="i-weight">—</span></div>
+            </div>
+
+            <div class="insight-section">
+                <div class="insight-label">Next Prediction</div>
+                <div class="stat-row">Your move   <span id="i-pred">—</span></div>
+                <div class="stat-row">AI counters <span id="i-counter">—</span></div>
+                <div class="stat-row">Source      <span id="i-source">—</span></div>
+                <div class="stat-row">Confidence  <span id="i-conf">—</span></div>
+            </div>
+
+            <div class="insight-section">
+                <div class="insight-label">AI Decision</div>
+                <div class="stat-row">ε (explore) <span id="i-eps">—</span></div>
+                <div class="stat-row">Exploit P   <span id="i-exploit">—</span></div>
+            </div>
+
+            <div class="insight-section">
+                <div class="insight-label">Q-Values</div>
+                <div class="stat-row">rock     <span id="q-rock">—</span></div>
+                <div class="stat-row">paper    <span id="q-paper">—</span></div>
+                <div class="stat-row">scissors <span id="q-scissors">—</span></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// ── Identity ──────────────────────────────────────────────────────────────────
+
+const LOCAL_KEY = 'rps_hive_identity';
+
+function getOrCreateHash() {
+    let id = localStorage.getItem(LOCAL_KEY);
+    if (!id) {
+        // Generate stable UUID-like ID
+        id = 'h_' + Array.from(crypto.getRandomValues(new Uint8Array(8)))
+            .map(b => b.toString(16).padStart(2,'0')).join('');
+        localStorage.setItem(LOCAL_KEY, id);
+    }
+    return id;
+}
+
+const playerHash = getOrCreateHash();
+let   playerName = localStorage.getItem('rps_hive_name') || '';
+let   currentRoom = null;
+let   myMoved    = false;
+
+// Pre-fill name
+const nameInput = document.getElementById('name-input');
+if (playerName) nameInput.value = playerName;
+
+document.getElementById('player-id').textContent = `id: ${playerHash.slice(0, 14)}…`;
+
+function identify() {
+    const name = nameInput.value.trim() || 'Player';
+    playerName = name;
+    localStorage.setItem('rps_hive_name', name);
+    send({ type: 'identify', hash: playerHash, name });
+    setMsg(`Name set to "${name}"`);
+}
+
+// ── WebSocket ─────────────────────────────────────────────────────────────────
+
+let ws = null;
+let reconnectTimer = null;
+
+function connect() {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const url   = `${proto}://${location.host}`;
+    ws = new WebSocket(url);
+
+    ws.onopen = () => {
+        document.getElementById('conn-status').textContent = '● connected';
+        document.getElementById('conn-status').className  = 'connected';
+        // Identify immediately
+        send({ type: 'identify', hash: playerHash, name: playerName || 'Player' });
+    };
+
+    ws.onclose = () => {
+        document.getElementById('conn-status').textContent = '● disconnected';
+        document.getElementById('conn-status').className  = '';
+        reconnectTimer = setTimeout(connect, 2000);
+    };
+
+    ws.onerror = () => ws.close();
+
+    ws.onmessage = (e) => {
+        try { handleServerMsg(JSON.parse(e.data)); } catch(_) {}
+    };
+}
+
+function send(msg) {
+    if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+}
+
+// ── Server message handler ────────────────────────────────────────────────────
+
+function handleServerMsg(msg) {
+    switch (msg.type) {
+        case 'connected':
+        case 'identified':
+            updateMotherStats(msg.stats);
+            break;
+
+        case 'ai_result':
+            renderAIResult(msg);
+            break;
+
+        case 'room_created':
+            currentRoom = msg.room;
+            document.getElementById('room-display').innerHTML =
+                `Room created: <span class="room-code">${msg.room}</span> — share this code!`;
+            document.getElementById('leave-btn').style.display = 'inline';
+            break;
+
+        case 'room_joined':
+            currentRoom = msg.room;
+            document.getElementById('room-display').innerHTML =
+                `Joined room: <span class="room-code">${msg.room}</span>`;
+            document.getElementById('leave-btn').style.display = 'inline';
+            break;
+
+        case 'player_joined':
+            setMsg(`${msg.name} joined the room.`);
+            break;
+
+        case 'player_left':
+            setMsg(`${msg.name} left the room.`);
+            document.getElementById('multi-game').style.display = 'none';
+            break;
+
+        case 'game_start':
+            document.getElementById('multi-game').style.display = 'block';
+            setMultiMoveEnabled(true);
+            setMsg('Game started! Make your move.');
+            break;
+
+        case 'room_state':
+            renderRoomState(msg);
+            break;
+
+        case 'player_ready':
+            setMsg(`${msg.name} has chosen.`);
+            break;
+
+        case 'round_result':
+            renderMultiResult(msg);
+            break;
+
+        case 'error':
+            setMsg(`⚠ ${msg.msg}`);
+            break;
+    }
+}
+
+// ── AI Mode ───────────────────────────────────────────────────────────────────
+
+const scores = { human: 0, ai: 0, draw: 0 };
+const EMOJI  = { rock: '✊', paper: '✋', scissors: '✌️' };
+
+function aiMove(move) {
+    send({ type: 'ai_move', move });
+}
+
+function renderAIResult(msg) {
+    const { humanMove, aiMove, outcome, scores: s, aiDecision, playerProfile, nextPrediction, motherStats } = msg;
+
+    document.getElementById('s-human').textContent = s.human;
+    document.getElementById('s-draw').textContent  = s.draw;
+    document.getElementById('s-ai').textContent    = s.ai;
+
+    const outcomeMap = {
+        human_wins: { text: 'You win!',    cls: 'outcome-win'  },
+        ai_wins:    { text: 'Mother wins!', cls: 'outcome-loss' },
+        draw:       { text: 'Draw!',        cls: 'outcome-draw' },
+    };
+    const { text, cls } = outcomeMap[outcome];
+
+    document.getElementById('result-area').innerHTML = `
+        <div>${EMOJI[humanMove]} <strong>${humanMove}</strong> vs <strong>${aiMove}</strong> ${EMOJI[aiMove]}</div>
+        <div class="outcome-text ${cls}">${text}</div>
+    `;
+
+    // Log
+    const log = document.getElementById('log');
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.textContent = `R${msg.round}: you ${humanMove} · AI ${aiMove} → ${text}`;
+    log.prepend(entry);
+    if (log.children.length > 10) log.lastChild.remove();
+
+    // Update insight panels
+    updateMotherStats(motherStats);
+    updatePlayerProfile(playerProfile);
+    updatePrediction(nextPrediction, aiDecision);
+    if (motherStats?.qValues) updateQValues(motherStats.qValues);
+}
+
+// ── Multiplayer Mode ──────────────────────────────────────────────────────────
+
+function createRoom() { send({ type: 'create_room' }); }
+
+function joinRoom() {
+    const code = document.getElementById('room-input').value.trim().toUpperCase();
+    if (!code) { setMsg('Enter a room code.'); return; }
+    send({ type: 'join_room', room: code });
+}
+
+function leaveRoom() {
+    send({ type: 'leave_room' });
+    currentRoom = null;
+    document.getElementById('room-display').textContent = 'No room joined.';
+    document.getElementById('multi-game').style.display = 'none';
+    document.getElementById('leave-btn').style.display  = 'none';
+}
+
+function multiMove(move) {
+    if (myMoved) return;
+    send({ type: 'move', move });
+    myMoved = true;
+    setMultiMoveEnabled(false);
+    setMsg(`You chose ${move}. Waiting for opponent…`);
+}
+
+function setMultiMoveEnabled(on) {
+    ['m-rock','m-paper','m-scissors'].forEach(id => {
+        document.getElementById(id).disabled = !on;
+    });
+    if (on) myMoved = false;
+}
+
+function renderRoomState(msg) {
+    const list = document.getElementById('player-list');
+    list.innerHTML = msg.players.map(p => `
+        <li>
+            <span><span class="ready-dot ${p.ready ? 'ready' : ''}"></span>${p.name}</span>
+            <span>${p.score} pts</span>
+        </li>
+    `).join('');
+}
+
+function renderMultiResult(msg) {
+    const moveStr = Object.entries(msg.moves).map(([n,m]) => `${n}: ${m}`).join(' · ');
+    const winner  = msg.winner ? `<strong>${msg.winner}</strong> wins!` : 'Draw!';
+
+    document.getElementById('multi-result').innerHTML = `
+        <div style="font-size:12px;color:var(--muted)">${moveStr}</div>
+        <div style="font-size:18px;font-weight:bold;margin-top:4px">${winner}</div>
+    `;
+
+    setMultiMoveEnabled(true);
+    setMsg(`Round ${msg.round} done. Make your next move!`);
+
+    // Show profiles if available
+    if (msg.profiles) {
+        const profiles = Object.entries(msg.profiles);
+        if (profiles.length > 0) {
+            const [, myProfile] = profiles.find(([name]) => name === playerName) || profiles[0];
+            if (myProfile) updatePlayerProfile(myProfile);
+        }
+    }
+}
+
+// ── Insight Panel Updates ─────────────────────────────────────────────────────
+
+function updateMotherStats(stats) {
+    if (!stats) return;
+    document.getElementById('i-obs').textContent     = stats.totalObservations?.toLocaleString() || '—';
+    document.getElementById('i-players').textContent = stats.totalPlayers || '—';
+
+    const bias = stats.globalBias || {};
+    for (const m of ['rock','paper','scissors']) {
+        const pct = parseFloat(bias[m] || 0);
+        document.getElementById(`gb-${m}`).style.width = pct + '%';
+        document.getElementById(`gp-${m}`).textContent = (bias[m] || '0.0') + '%';
+    }
+
+    if (stats.qValues) updateQValues(stats.qValues);
+}
+
+function updatePlayerProfile(profile) {
+    if (!profile) return;
+    document.getElementById('i-games').textContent  = profile.games || '—';
+    document.getElementById('i-style').textContent  = profile.style || '—';
+    document.getElementById('i-weight').textContent = profile.weight ? (profile.weight * 100).toFixed(0) + '%' : '—';
+
+    const H = profile.entropy;
+    if (H !== undefined) {
+        const pct   = (H * 100).toFixed(1) + '%';
+        const cls   = H < 0.35 ? 'entropy-low' : H < 0.7 ? 'entropy-mid' : 'entropy-high';
+        const label = H < 0.35 ? 'predictable' : H < 0.7 ? 'mixed' : 'chaotic';
+        document.getElementById('i-entropy').innerHTML =
+            `<span class="entropy-pill ${cls}">${pct} ${label}</span>`;
+    }
+}
+
+function updatePrediction(prediction, decision) {
+    if (prediction) {
+        document.getElementById('i-pred').textContent    = prediction.predicted || '—';
+        document.getElementById('i-counter').textContent = prediction.counter   || '—';
+        const topSrc = prediction.sources?.[0]?.source || '—';
+        document.getElementById('i-source').textContent  = topSrc;
+        document.getElementById('i-conf').textContent    = prediction.confidence
+            ? (prediction.confidence * 100).toFixed(1) + '%' : '—';
+    }
+    if (decision) {
+        document.getElementById('i-eps').textContent    = decision.epsilon
+            ? (decision.epsilon * 100).toFixed(1) + '%' : '—';
+        document.getElementById('i-exploit').textContent = decision.exploitPressure !== undefined
+            ? (decision.exploitPressure * 100).toFixed(1) + '%' : '—';
+    }
+}
+
+function updateQValues(q) {
+    for (const m of ['rock','paper','scissors']) {
+        const el = document.getElementById(`q-${m}`);
+        if (el && q[m] !== undefined) el.textContent = q[m].toFixed(4);
+    }
+}
+
+// ── UI Helpers ────────────────────────────────────────────────────────────────
+
+function setMsg(text) {
+    document.getElementById('msg').textContent = text;
+    clearTimeout(setMsg._t);
+    setMsg._t = setTimeout(() => { document.getElementById('msg').textContent = ''; }, 4000);
+}
+
+function switchMode(mode) {
+    document.getElementById('mode-ai').style.display    = mode === 'ai'    ? '' : 'none';
+    document.getElementById('mode-multi').style.display = mode === 'multi' ? '' : 'none';
+    document.getElementById('tab-ai').classList.toggle('active',    mode === 'ai');
+    document.getElementById('tab-multi').classList.toggle('active', mode === 'multi');
+}
+
+// ── Enter key for name ────────────────────────────────────────────────────────
+nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') identify(); });
+document.getElementById('room-input').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); });
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+connect();
+</script>
+</body>
+</html>
